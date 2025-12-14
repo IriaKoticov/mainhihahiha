@@ -11,7 +11,7 @@ def find_users_file(candidate: str = None) -> Optional[str]:
     if candidate:
         search.append(candidate)
     # cwd
-    search.append(os.path.join(os.getcwd(), "users.txt"))
+    search.append(os.path.join(os.getcwd(), "config/users.txt"))
     # same dir as this file
     here = os.path.dirname(os.path.abspath(__file__))
     search.append(os.path.join(here, "users.txt"))
@@ -56,7 +56,6 @@ def authorize(username: str, password: str, users_file: str = None) -> int:
             if user != username:
                 continue
 
-            # bcrypt hash?
             if _is_bcrypt_hash(pw_field):
                 if _verify_bcrypt(pw_field, password):
                     return role

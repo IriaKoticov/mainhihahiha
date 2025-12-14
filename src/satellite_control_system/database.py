@@ -1,5 +1,5 @@
-from system.custom_process import BaseCustomProcess
-from system.config import DATABASE_QUEUE_NAME, DEFAULT_LOG_LEVEL, LOG_INFO, LOG_ERROR
+from src.system.custom_process import BaseCustomProcess
+from src.system.config import DATABASE_QUEUE_NAME, DEFAULT_LOG_LEVEL, LOG_INFO, LOG_ERROR
 from src.system.queues_dir import QueuesDirectory
 from src.system.event_types import Event
 from queue import Empty
@@ -11,12 +11,12 @@ RECORD_HEADER = struct.Struct("<I")
 RECORD_BODY   = struct.Struct("<Idd")
 
 
-class Database(BaseCustomProcess)
+class Database(BaseCustomProcess):
     log_prefix = "[DATABASE]"
     event_source_name = DATABASE_QUEUE_NAME
     events_q_name = event_source_name
     filename = ""
-    def __init__(self, filename_f:str, queues_dir: QueuesDirector,log_level: int = DEFAULT_LOG_LEVEL):
+    def __init__(self, filename_f:str, queues_dir: QueuesDirectory,log_level: int = DEFAULT_LOG_LEVEL):
         super().__init__(
             log_prefix=Database.log_prefix,
         queues_dir=queues_dir,

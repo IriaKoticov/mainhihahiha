@@ -1,6 +1,7 @@
 """ Перехватчик событий для монитора безопасности """
 from multiprocessing import Queue
 from queue import Empty
+import time
 
 from src.system.custom_process import BaseCustomProcess
 from src.system.queues_dir import QueuesDirectory

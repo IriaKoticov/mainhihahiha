@@ -21,13 +21,7 @@ class Database(BaseCustomProcess):
     event_source_name = DATABASE_QUEUE_NAME
     events_q_name = event_source_name
     filename = ""
-
-    def __init__(
-        self,
-        filename_f: str,
-        queues_dir: QueuesDirectory,
-        log_level: int = DEFAULT_LOG_LEVEL,
-    ):
+    def __init__(self, filename_f:str, queues_dir: QueuesDirectory,log_level: int = DEFAULT_LOG_LEVEL):
         super().__init__(
             log_prefix=Database.log_prefix,
             queues_dir=queues_dir,

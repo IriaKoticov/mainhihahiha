@@ -1,4 +1,4 @@
-# username:salthex$dkhex:role/
+# username:salthex$dkhex:role
 alice:$2b$12$sCZRYuaHdylsz3FDgKr/FeB/9bK3zWjH/LokwLMHFzaY6bxBc76Ke:1
 bob:$2b$12$zbvU854q4gnHDER5sceB8uK2/JWFxYJ9a7bWTdme.egP.AublKFm.:2
 admin:$2b$12$zbvU854q4gnHDER5sceB8uK2/JWFxYJ9a7bWTdme.egP.AublKFm.:3

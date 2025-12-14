@@ -1,29 +1,31 @@
 #!/usr/bin/env python3
-""" Главный модуль запуска всей системы управления спутником """
-import sys
-import os
-import time
-import threading
-from multiprocessing import Queue
-import signal
+"""Главный модуль запуска всей системы управления спутником"""
+
 import asyncio
+import os
+import signal
+import sys
+import threading
+import time
+from multiprocessing import Queue
 
 # Добавляем пути для импорта
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from src.client.program_parser import parse_program
+from src.satellite_control_system.interpreter_impl import InterpreterImpl
+from src.satellite_control_system.security_monitor_impl import SecurityMonitorImpl
+
+from src.client.auth import AuthError, authorize
+from src.client.logger import setup_logger
+from src.satellite_control_system.optics_control import OpticsControl
+from src.satellite_control_system.orbit_control import OrbitControl
+from src.satellite_simulator.camera import Camera
+from src.satellite_simulator.orbit_drawer import OrbitDrawer
+from src.satellite_simulator.satellite import Satellite
+from src.system.config import DEFAULT_LOG_LEVEL
 from src.system.queues_dir import QueuesDirectory
 from src.system.system_wrapper import SystemComponentsContainer
-from src.satellite_simulator.satellite import Satellite
-from src.satellite_simulator.orbit_drawer import OrbitDrawer
-from src.satellite_simulator.camera import Camera
-from src.satellite_control_system.orbit_control import OrbitControl
-from src.satellite_control_system.optics_control import OpticsControl
-from src.satellite_control_system.security_monitor_impl import SecurityMonitorImpl
-from src.client.auth import authorize, AuthError
-from src.client.program_parser import parse_program
-from src.client.logger import setup_logger
-from src.satellite_control_system.interpreter_impl import InterpreterImpl
-from src.system.config import DEFAULT_LOG_LEVEL
 
 
 class SatelliteControlSystem:
@@ -53,7 +55,9 @@ class SatelliteControlSystem:
             role_names = {1: "клиент", 2: "VIP", 3: "администратор"}
             role_name = role_names.get(self.role, "неизвестная роль")
 
-            self.log.info(f"Авторизация успешна! Пользователь: {login}, Роль: {role_name}")
+            self.log.info(
+                f"Авторизация успешна! Пользователь: {login}, Роль: {role_name}"
+            )
             return True
 
         except AuthError as e:
@@ -92,16 +96,15 @@ class SatelliteControlSystem:
 
         # 1. Монитор безопасности (первым!)
         security_monitor = SecurityMonitorImpl(
-            queues_dir=self.queues_dir,
-            log_level=self.log_level
+            queues_dir=self.queues_dir, log_level=self.log_level
         )
         self.components.append(security_monitor)
 
         # 2. Перехватчик безопасности (новый компонент!)
         from src.client.security_interceptor import SecurityInterceptor
+
         security_interceptor = SecurityInterceptor(
-            queues_dir=self.queues_dir,
-            log_level=self.log_level
+            queues_dir=self.queues_dir, log_level=self.log_level
         )
         self.components.append(security_interceptor)
 
@@ -112,42 +115,33 @@ class SatelliteControlSystem:
             inclination=0.1,
             raan=0.0,
             queues_dir=self.queues_dir,
-            log_level=self.log_level
+            log_level=self.log_level,
         )
         self.components.append(satellite)
 
         # 4. Визуализатор орбиты
-        orbit_drawer = OrbitDrawer(
-            queues_dir=self.queues_dir,
-            log_level=self.log_level
-        )
+        orbit_drawer = OrbitDrawer(queues_dir=self.queues_dir, log_level=self.log_level)
         self.components.append(orbit_drawer)
 
         # 5. Камера
-        camera = Camera(
-            queues_dir=self.queues_dir,
-            log_level=self.log_level
-        )
+        camera = Camera(queues_dir=self.queues_dir, log_level=self.log_level)
         self.components.append(camera)
 
         # 6. Управление орбитой
         orbit_control = OrbitControl(
-            queues_dir=self.queues_dir,
-            log_level=self.log_level
+            queues_dir=self.queues_dir, log_level=self.log_level
         )
         self.components.append(orbit_control)
 
         # 7. Управление оптикой
         optics_control = OpticsControl(
-            queues_dir=self.queues_dir,
-            log_level=self.log_level
+            queues_dir=self.queues_dir, log_level=self.log_level
         )
         self.components.append(optics_control)
 
         # Создаем контейнер для управления компонентами
         self.container = SystemComponentsContainer(
-            components=self.components,
-            log_level=self.log_level
+            components=self.components, log_level=self.log_level
         )
 
         self.log.info("Все компоненты системы инициализированы")
@@ -162,6 +156,7 @@ class SatelliteControlSystem:
         if camera_q:
             # Создаем новую очередь для перенаправления
             from multiprocessing import Queue
+
             redirect_q = Queue()
             self.queues_dir.register(redirect_q, "camera_redirect")
 
@@ -174,9 +169,6 @@ class SatelliteControlSystem:
         self.log.info("=" * 60)
         self.log.info("ЗАПУСК СИСТЕМЫ УПРАВЛЕНИЯ СПУТНИКОМ")
         self.log.info("=" * 60)
-
-        # Настройка обработчика Ctrl+C
-        signal.signal(signal.SIGINT, self.signal_handler)
 
         # Запускаем все компоненты в отдельных потоках для оптимизации
         self.container.start()
@@ -198,12 +190,6 @@ class SatelliteControlSystem:
 
         self.log.info("Система остановлена")
 
-    def signal_handler(self, sig, frame):
-        """Обработчик сигнала Ctrl+C"""
-        self.log.info("\nПолучен сигнал завершения (Ctrl+C)")
-        self.stop_system()
-        sys.exit(0)
-
     def execute_program(self, commands):
         """Выполнение программы управления"""
         if not commands:
@@ -212,10 +198,7 @@ class SatelliteControlSystem:
 
         # Создание интерпретатора
         interpreter = InterpreterImpl(
-            user=self.user,
-            role=self.role,
-            logger=self.log,
-            queues_dir=self.queues_dir
+            user=self.user, role=self.role, logger=self.log, queues_dir=self.queues_dir
         )
 
         self.log.info("=" * 60)
@@ -231,9 +214,7 @@ class SatelliteControlSystem:
             try:
                 # Выполняем команду в отдельном потоке для скорости
                 thread = threading.Thread(
-                    target=interpreter._execute_command,
-                    args=(cmd,),
-                    daemon=True
+                    target=interpreter._execute_command, args=(cmd,), daemon=True
                 )
                 thread.start()
                 thread.join(timeout=5)  # Таймаут 5 секунд на команду
@@ -287,6 +268,7 @@ class SatelliteControlSystem:
         except Exception as e:
             self.log.error(f"Критическая ошибка: {e}")
             import traceback
+
             traceback.print_exc()
         finally:
             self.stop_system()
@@ -296,11 +278,16 @@ def main():
     """Главная функция"""
     import argparse
 
-    parser = argparse.ArgumentParser(description='Система управления спутником')
-    parser.add_argument('--log-level', type=int, default=DEFAULT_LOG_LEVEL,
-                        help='Уровень логирования (0-3)')
-    parser.add_argument('--program', type=str, default='program.txt',
-                        help='Путь к файлу программы')
+    parser = argparse.ArgumentParser(description="Система управления спутником")
+    parser.add_argument(
+        "--log-level",
+        type=int,
+        default=DEFAULT_LOG_LEVEL,
+        help="Уровень логирования (0-3)",
+    )
+    parser.add_argument(
+        "--program", type=str, default="program.txt", help="Путь к файлу программы"
+    )
 
     args = parser.parse_args()
 

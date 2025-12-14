@@ -1,28 +1,39 @@
-from system.custom_process import BaseCustomProcess
-from system.config import DATABASE_QUEUE_NAME, DEFAULT_LOG_LEVEL, LOG_INFO, LOG_ERROR
-from src.system.queues_dir import QueuesDirectory
-from src.system.event_types import Event
-from queue import Empty
 import os
 import struct
+from queue import Empty
 
+from src.system.config import (
+    DATABASE_QUEUE_NAME,
+    DEFAULT_LOG_LEVEL,
+    LOG_ERROR,
+    LOG_INFO,
+)
+from src.system.custom_process import BaseCustomProcess
+from src.system.event_types import Event
+from src.system.queues_dir import QueuesDirectory
 
 RECORD_HEADER = struct.Struct("<I")
-RECORD_BODY   = struct.Struct("<Idd")
+RECORD_BODY = struct.Struct("<Idd")
 
 
-class Database(BaseCustomProcess)
+class Database(BaseCustomProcess):
     log_prefix = "[DATABASE]"
     event_source_name = DATABASE_QUEUE_NAME
     events_q_name = event_source_name
     filename = ""
-    def __init__(self, filename_f:str, queues_dir: QueuesDirector,log_level: int = DEFAULT_LOG_LEVEL):
+
+    def __init__(
+        self,
+        filename_f: str,
+        queues_dir: QueuesDirectory,
+        log_level: int = DEFAULT_LOG_LEVEL,
+    ):
         super().__init__(
             log_prefix=Database.log_prefix,
-        queues_dir=queues_dir,
-        events_q_name=Database.event_source_name,
-        event_source_name=Database.event_source_name,
-        log_level=log_level
+            queues_dir=queues_dir,
+            events_q_name=Database.event_source_name,
+            event_source_name=Database.event_source_name,
+            log_level=log_level,
         )
         self.filename = filename_f
         self.i = self._load_last_index()
@@ -37,8 +48,6 @@ class Database(BaseCustomProcess)
             except Exception as e:
                 self._log_message(LOG_ERROR, f"ошибка модуля баз данных: {e}")
 
-
-
     def _check_events_q(self):
         while True:
             try:
@@ -51,7 +60,7 @@ class Database(BaseCustomProcess)
 
                 # Проверяем вид операции и обрабатываем
                 match event.operation:
-                    case 'add_photo':
+                    case "add_photo":
                         lat, lon = event.parameters
                         self._write(lat, lon)
                         self._log_message(LOG_INFO, f"снимок cохранен ({lat}, {lon})")
@@ -83,12 +92,12 @@ class Database(BaseCustomProcess)
         return last_i + 1
 
     def _write(self, lat: float, lon: float):
-            name = f"photo{self.i}".encode("utf-8")
+        name = f"photo{self.i}".encode("utf-8")
 
-            with open(self.filename, "ab") as f:
-                f.write(RECORD_HEADER.pack(len(name)))
-                f.write(name)
-                f.write(RECORD_BODY.pack(self.i, lat, lon))
+        with open(self.filename, "ab") as f:
+            f.write(RECORD_HEADER.pack(len(name)))
+            f.write(name)
+            f.write(RECORD_BODY.pack(self.i, lat, lon))
 
-            print(f"Saved photo{self.i} ({lat}, {lon})")
-            self.i += 1
+        print(f"Saved photo{self.i} ({lat}, {lon})")
+        self.i += 1

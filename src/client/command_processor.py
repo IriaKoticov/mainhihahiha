@@ -1,7 +1,8 @@
 """Обработчик команд, парсер программ, система прав доступа"""
+
 import time
 from dataclasses import dataclass
-from typing import Tuple, List
+from typing import List, Tuple
 
 # === КОНСТАНТЫ РОЛЕЙ ===
 ROLE_CLIENT = 1
@@ -13,7 +14,7 @@ PERMISSIONS = {
     "MAKE PHOTO": {ROLE_CLIENT, ROLE_VIP, ROLE_ADMIN},
     "ORBIT": {ROLE_VIP, ROLE_ADMIN},
     "ADD ZONE": {ROLE_ADMIN},
-    "REMOVE ZONE": {ROLE_ADMIN}
+    "REMOVE ZONE": {ROLE_ADMIN},
 }
 
 
@@ -36,46 +37,41 @@ def parse_program(program_file: str) -> List[Command]:
     commands = []
 
     try:
-        with open(program_file, 'r', encoding='utf-8') as f:
+        with open(program_file, "r", encoding="utf-8") as f:
             for line_num, line in enumerate(f, 1):
                 line = line.strip()
 
                 # Пропускаем пустые строки и комментарии
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
 
                 # Разбираем команду
                 parts = line.split()
 
                 if parts[0] == "ORBIT" and len(parts) == 4:
-                    commands.append(Command(
-                        name="ORBIT",
-                        args=tuple(map(float, parts[1:4]))
-                    ))
+                    commands.append(
+                        Command(name="ORBIT", args=tuple(map(float, parts[1:4])))
+                    )
 
                 elif line == "MAKE PHOTO":
-                    commands.append(Command(
-                        name="MAKE PHOTO",
-                        args=()
-                    ))
+                    commands.append(Command(name="MAKE PHOTO", args=()))
 
                 elif parts[0] == "ADD" and parts[1] == "ZONE" and len(parts) == 7:
-                    commands.append(Command(
-                        name="ADD ZONE",
-                        args=(
-                            int(parts[2]),
-                            float(parts[3]),
-                            float(parts[4]),
-                            float(parts[5]),
-                            float(parts[6])
+                    commands.append(
+                        Command(
+                            name="ADD ZONE",
+                            args=(
+                                int(parts[2]),
+                                float(parts[3]),
+                                float(parts[4]),
+                                float(parts[5]),
+                                float(parts[6]),
+                            ),
                         )
-                    ))
+                    )
 
                 elif parts[0] == "REMOVE" and parts[1] == "ZONE" and len(parts) == 3:
-                    commands.append(Command(
-                        name="REMOVE ZONE",
-                        args=(int(parts[2]),)
-                    ))
+                    commands.append(Command(name="REMOVE ZONE", args=(int(parts[2]),)))
 
                 else:
                     raise ValueError(f"Ошибка синтаксиса в строке {line_num}: {line}")
@@ -94,11 +90,7 @@ def check_permission(role: int, command_name: str) -> bool:
 
 def get_role_name(role: int) -> str:
     """Преобразует код роли в читаемое название"""
-    role_names = {
-        ROLE_CLIENT: "клиент",
-        ROLE_VIP: "VIP",
-        ROLE_ADMIN: "администратор"
-    }
+    role_names = {ROLE_CLIENT: "клиент", ROLE_VIP: "VIP", ROLE_ADMIN: "администратор"}
     return role_names.get(role, "неизвестная роль")
 
 
@@ -118,7 +110,9 @@ class CommandInterpreter:
             self.log.warning("Нет команд для выполнения")
             return
 
-        self.log.info(f"Пользователь '{self.user.username}' начинает выполнение программы ({len(commands)} команд)")
+        self.log.info(
+            f"Пользователь '{self.user.username}' начинает выполнение программы ({len(commands)} команд)"
+        )
 
         for i, cmd in enumerate(commands, 1):
             self._execute_single_command(cmd, i)
@@ -134,8 +128,10 @@ class CommandInterpreter:
 
         # Проверка прав доступа
         if not check_permission(self.user.role, cmd.name):
-            self.log.warning(f"ОТКАЗ: У пользователя '{self.user.username}' ({get_role_name(self.user.role)}) "
-                             f"нет прав на выполнение команды '{cmd.name}'")
+            self.log.warning(
+                f"ОТКАЗ: У пользователя '{self.user.username}' ({get_role_name(self.user.role)}) "
+                f"нет прав на выполнение команды '{cmd.name}'"
+            )
             return
 
         try:
@@ -175,31 +171,37 @@ class CommandInterpreter:
         q = self.queues_dir.get_queue("security")
         if q:
             from src.system.event_types import Event
-            q.put(Event(
-                source=f"client_{self.user.username}",
-                destination="orbit_control",
-                operation="change_orbit",
-                parameters=(altitude, raan, inclination),
-                signature=f"orbit_{self.user.username}_{self.command_counter}"
-            ))
+
+            q.put(
+                Event(
+                    source=f"client_{self.user.username}",
+                    destination="orbit_control",
+                    operation="change_orbit",
+                    parameters=(altitude, raan, inclination),
+                    signature=f"orbit_{self.user.username}_{self.command_counter}",
+                )
+            )
             self.command_counter += 1
 
     def _execute_photo_command(self):
         q = self.queues_dir.get_queue("security")
         if q:
             from src.system.event_types import Event
-            q.put(Event(
-                source=f"client_{self.user.username}",
-                destination="optics_control",
-                operation="request_photo",
-                parameters=None,
-                extra_parameters={
-                    'user': self.user.username,
-                    'role': self.user.role,
-                    'priority': 1
-                },
-                signature=f"photo_{self.user.username}_{self.command_counter}"
-            ))
+
+            q.put(
+                Event(
+                    source=f"client_{self.user.username}",
+                    destination="optics_control",
+                    operation="request_photo",
+                    parameters=None,
+                    extra_parameters={
+                        "user": self.user.username,
+                        "role": self.user.role,
+                        "priority": 1,
+                    },
+                    signature=f"photo_{self.user.username}_{self.command_counter}",
+                )
+            )
             self.command_counter += 1
 
     def _execute_add_zone_command(self, args):
@@ -217,24 +219,27 @@ class CommandInterpreter:
             lat_top_right=max(lat1, lat2),
             lon_top_right=max(lon1, lon2),
             description=f"Добавлено пользователем {self.user.username}",
-            severity_level=3
+            severity_level=3,
         )
 
         # Отправка команды в систему
         q = self.queues_dir.get_queue("security")
         if q:
             from src.system.event_types import Event
-            q.put(Event(
-                source=f"client_{self.user.username}",
-                destination="security_monitor",
-                operation="add_restricted_zone",
-                parameters=zone,
-                extra_parameters={
-                    'user': self.user.username,
-                    'role': self.user.role
-                },
-                signature=f"addzone_{self.user.username}_{self.command_counter}"
-            ))
+
+            q.put(
+                Event(
+                    source=f"client_{self.user.username}",
+                    destination="security_monitor",
+                    operation="add_restricted_zone",
+                    parameters=zone,
+                    extra_parameters={
+                        "user": self.user.username,
+                        "role": self.user.role,
+                    },
+                    signature=f"addzone_{self.user.username}_{self.command_counter}",
+                )
+            )
             self.command_counter += 1
 
     def _execute_remove_zone_command(self, args):
@@ -244,17 +249,20 @@ class CommandInterpreter:
         q = self.queues_dir.get_queue("security")
         if q:
             from src.system.event_types import Event
-            q.put(Event(
-                source=f"client_{self.user.username}",
-                destination="security_monitor",
-                operation="remove_restricted_zone",
-                parameters=zone_id,
-                extra_parameters={
-                    'user': self.user.username,
-                    'role': self.user.role
-                },
-                signature=f"removezone_{self.user.username}_{self.command_counter}"
-            ))
+
+            q.put(
+                Event(
+                    source=f"client_{self.user.username}",
+                    destination="security_monitor",
+                    operation="remove_restricted_zone",
+                    parameters=zone_id,
+                    extra_parameters={
+                        "user": self.user.username,
+                        "role": self.user.role,
+                    },
+                    signature=f"removezone_{self.user.username}_{self.command_counter}",
+                )
+            )
             self.command_counter += 1
 
     def _pause_after_command(self, command_name: str):

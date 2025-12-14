@@ -139,18 +139,19 @@ class OpticsControl(BaseCustomProcess):
         if event.parameters:
             lat, lon = event.parameters
 
-            # Отправляем в монитор безопасности для проверки
+            # Отправляем через монитор безопасности для проверки
             q: Queue = self._queues_dir.get_queue(SECURITY_MONITOR_QUEUE_NAME)
             q.put(
                 Event(
                     source=self._event_source_name,
-                    destination=SECURITY_MONITOR_QUEUE_NAME,  # Отправляем в монитор безопасности
-                    operation='post_photo_check',  # Изменяем операцию
+                    destination=ORBIT_DRAWER_QUEUE_NAME,  # Важно: destination = ORBIT_DRAWER_QUEUE_NAME
+                    operation='update_photo_map',
                     parameters=(lat, lon),
                     extra_parameters=event.extra_parameters,
                     signature=event.signature
                 )
             )
+            self._log_message(LOG_DEBUG, f"отправлен снимок для отображения ({lat}, {lon})")
 
     def _handle_set_interval(self, event: Event):
         """Установка интервала между съемками"""

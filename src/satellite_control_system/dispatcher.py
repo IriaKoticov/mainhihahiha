@@ -50,9 +50,7 @@ class Dispatcher(BaseCustomProcess):
                                 parameters=(lat, lon),
                             )
                         )
-                        self._log_message(
-                            LOG_INFO, f"снимок ({lat}, {lon}) передав базу данных"
-                        )
+                        self._log_message(LOG_INFO, f"снимок cохранен ({lat}, {lon})")
 
                     case "req_to_swich_orbit":
                         pass

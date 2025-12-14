@@ -31,10 +31,6 @@ class UserContext:
     role: int
 
 
-class Interpreter:
-    pass
-
-
 # === ПАРСЕР ПРОГРАММ ===
 def parse_program(program_file: str) -> List[Command]:
     """Чтение и разбор программы из файла"""

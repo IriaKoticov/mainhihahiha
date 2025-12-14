@@ -168,7 +168,7 @@ class CommandInterpreter:
             raise ValueError(f"Высота орбиты {altitude} вне диапазона 160000-2000000")
 
         # Отправка команды в систему
-        q = self.queues_dir.get_queue("security")
+        q = self.queues_dir.get_queue('security')
         if q:
             from src.system.event_types import Event
 

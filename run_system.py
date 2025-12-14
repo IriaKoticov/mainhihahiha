@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Главный модуль запуска всей системы управления спутником"""
-
-import asyncio
+""" Главный модуль запуска всей системы управления спутником """
+import sys
 import os
 import time
 import signal
@@ -21,8 +20,6 @@ from src.client.auth import authorize, AuthError
 from src.client.command_processor import CommandInterpreter, UserContext, parse_program
 from src.client.logger import setup_logger
 from src.system.config import DEFAULT_LOG_LEVEL
-from src.system.queues_dir import QueuesDirectory
-from src.system.system_wrapper import SystemComponentsContainer
 
 
 class SatelliteControlSystem:
@@ -51,9 +48,7 @@ class SatelliteControlSystem:
             role_names = {1: "клиент", 2: "VIP", 3: "администратор"}
             role_name = role_names.get(self.role, "неизвестная роль")
 
-            self.log.info(
-                f"Авторизация успешна! Пользователь: {login}, Роль: {role_name}"
-            )
+            self.log.info(f"Авторизация успешна! Пользователь: {login}, Роль: {role_name}")
             return True
 
         except AuthError as e:
@@ -84,7 +79,7 @@ class SatelliteControlSystem:
             inclination=0.1,
             raan=0.0,
             queues_dir=self.queues_dir,
-            log_level=self.log_level,
+            log_level=self.log_level
         )
         self.components.append(satellite)
 
@@ -104,19 +99,22 @@ class SatelliteControlSystem:
 
         # 5. Управление орбитой
         orbit_control = OrbitControl(
-            queues_dir=self.queues_dir, log_level=self.log_level
+            queues_dir=self.queues_dir,
+            log_level=self.log_level
         )
         self.components.append(orbit_control)
 
         # 6. Управление оптикой
         optics_control = OpticsControl(
-            queues_dir=self.queues_dir, log_level=self.log_level
+            queues_dir=self.queues_dir,
+            log_level=self.log_level
         )
         self.components.append(optics_control)
 
         # Создаем контейнер для управления компонентами
         self.container = SystemComponentsContainer(
-            components=self.components, log_level=self.log_level
+            components=self.components,
+            log_level=self.log_level
         )
 
         self.log.info("Все компоненты системы инициализированы")
@@ -127,26 +125,37 @@ class SatelliteControlSystem:
         self.log.info("ЗАПУСК СИСТЕМЫ УПРАВЛЕНИЯ СПУТНИКОМ")
         self.log.info("=" * 60)
 
-        # Настройка обработчика Ctrl+C
-        signal.signal(signal.SIGINT, self.signal_handler)
+        # Настройка обработчика Ctrl+C - используем лямбда-функцию
+        signal.signal(signal.SIGINT, lambda sig, frame: self._signal_handler(sig, frame))
 
         # Запускаем все компоненты
         self.container.start()
         self.running = True
 
-        # Задержка для стабилизации
-        time.sleep(1)
+        # Даем время на инициализацию всех компонентов
+        self.log.info("Ожидание инициализации компонентов...")
+        time.sleep(2)
 
         self.log.info("Система успешно запущена и готова к работе")
+
+    def _signal_handler(self, sig, frame):
+        """Обработчик сигнала Ctrl+C"""
+        self.log.info("\nПолучен сигнал завершения (Ctrl+C)")
+        self.stop_system()
+        sys.exit(0)
 
     def stop_system(self):
         """Остановка системы"""
         self.log.info("Остановка системы...")
         self.running = False
 
-        if self.container:
-            self.container.stop()
-            self.container.clean()
+        if self.container and hasattr(self.container, 'stop'):
+            try:
+                self.container.stop()
+                if hasattr(self.container, 'clean'):
+                    self.container.clean()
+            except Exception as e:
+                self.log.error(f"Ошибка при остановке контейнера: {e}")
 
         self.log.info("Система остановлена")
 
@@ -189,7 +198,7 @@ class SatelliteControlSystem:
             # 3. Запускаем систему
             self.start_system()
 
-            # 4. Загружаем программу
+            # 4. Загружаем программу пользователя
             program_file = "program.txt"
             if not os.path.exists(program_file):
                 self.log.warning(f"Файл программы '{program_file}' не найден")
@@ -212,7 +221,6 @@ class SatelliteControlSystem:
         except Exception as e:
             self.log.error(f"Критическая ошибка: {e}")
             import traceback
-
             traceback.print_exc()
         finally:
             self.stop_system()
@@ -222,16 +230,11 @@ def main():
     """Главная функция"""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Система управления спутником")
-    parser.add_argument(
-        "--log-level",
-        type=int,
-        default=DEFAULT_LOG_LEVEL,
-        help="Уровень логирования (0-3)",
-    )
-    parser.add_argument(
-        "--program", type=str, default="program.txt", help="Путь к файлу программы"
-    )
+    parser = argparse.ArgumentParser(description='Система управления спутником')
+    parser.add_argument('--log-level', type=int, default=DEFAULT_LOG_LEVEL,
+                        help='Уровень логирования (0-3)')
+    parser.add_argument('--program', type=str, default='program.txt',
+                        help='Путь к файлу программы')
 
     args = parser.parse_args()
 
